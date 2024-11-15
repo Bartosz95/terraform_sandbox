@@ -1,0 +1,124 @@
+on:
+  workflow_call:
+    inputs:
+      tfcloud-project:
+        required: true
+        type: string
+        description: Name of the TF cloud project the workspace(s) belong to
+      root-module:
+        required: true
+        type: string
+        description: Name of the root module you wish to deploy
+      working-directory:
+        required: true
+        type: string
+        description: Location of the Terraform code
+      workspace-name:
+        required: false
+        type: string
+        description: Name of the workspace to deploy to, if not suppled a workspace name will be generated from the tfcloud-project and root-module inputs
+      region:
+        required: false
+        type: string
+        description: Region where the resources are.
+
+permissions:
+  id-token: write # Needed to perform OIDC with Terraform Cloud
+  contents: read # Needed to read the repository contents
+  actions: write
+  checks: write
+  deployments: write
+  issues: write
+  discussions: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
+
+concurrency:
+  group: deploy-${{ inputs.tfcloud-project }}-${{ inputs.root-module }}
+
+env:
+  WORKSPACE_NAME: ${{ inputs.workspace-name == null && format('{0}-{1}', inputs.tfcloud-project, inputs.root-module) || inputs.workspace-name }}
+  AWS_REGION: ${{ inputs.region }}
+  CONFIG_DIRECTORY: ${{ inputs.working-directory }}
+  ORGANISATION: ${{ inputs.tfcloud-project }}
+  TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+  ACTIONS_STEP_DEBUG: true  # Enables step debugging
+  ACTIONS_RUNNER_DEBUG: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug secrets
+        run:  echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: config
+        name: Upload configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.2.0
+        with:
+          token: ${{ env.TF_API_TOKEN }}
+          organization: ${{ env.ORGANISATION }}
+          workspace: ${{ env.WORKSPACE_NAME }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+
+  
+      - id: queue
+        name: Queue Apply
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.2.0
+        with:
+          token: ${{ env.TF_API_TOKEN }}
+          organization: ${{ env.ORGANISATION }}
+          workspace: ${{ env.WORKSPACE_NAME }}
+          configuration_version: ${{ steps.config.outputs.configuration_version_id }}
+
+      - name: Plan output
+        id: plan-output
+        uses: hashicorp/tfc-workflows-github/actions/plan-output@v1.2.0
+        with:
+          organization: ${{ env.ORGANISATION }}
+          token: ${{ env.TF_API_TOKEN }}
+          plan: ${{ steps.queue.outputs.plan_id }}
+
+      - name: Check Plan Includes Changes
+        id: check-plan
+        run: |
+          if [[ "${{ steps.plan-output.outputs.add }}" == "0" && "${{ steps.plan-output.outputs.change }}" == "0" && "${{ steps.plan-output.outputs.destroy }}" == "0" ]]; then
+            echo "includes_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "includes_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+    outputs:
+      run_id: ${{ steps.queue.outputs.run_id }}
+      includes_changes: ${{ steps.check-plan.outputs.includes_changes }}
+
+  apply:
+    if: ${{ needs.plan.outputs.includes_changes == 'true' }}
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: ${{ inputs.root-module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.3.1
+        with:
+          organization: ${{ env.ORGANISATION }}
+          token: ${{ env.TF_API_TOKEN }}
+          run: ${{needs.plan.outputs.run_id}}

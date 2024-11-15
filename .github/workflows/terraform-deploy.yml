@@ -1,0 +1,17 @@
+name: Terraform deploy
+
+on:
+  push:
+    branches:
+        - main
+  workflow_dispatch:
+
+jobs:
+    terraform:
+        uses: ./.github/workflows/deploy-aws.yml
+        with:
+          root-module: my-root-module
+          tfcloud-project: bartosz_org
+          region: ap-southeast-2
+          working-directory: terraform
+          workspace-name: terraform_sandbox
