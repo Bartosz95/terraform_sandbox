@@ -1,15 +1,8 @@
 terraform {
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.52.0"
-    }
-    random = {
-      version = "~> 3.6.2"
-    }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "2.6.0"
+    local = {
+      source  = "hashicorp/local"
+      version = "2.5.2"
     }
 
   }
@@ -23,12 +16,13 @@ terraform {
 }
 
 # Configure the AWS Provider
-provider "aws" {
-  region = "ap-southeast-2"
+provider "local" {
+  # Configuration options
 }
 
 # Create a VPC
-resource "aws_vpc" "example" {
-  cidr_block = "10.0.0.0/18"
+resource "local_file" "foo" {
+  content  = "foo!"
+  filename = "${path.module}/foo.bar"
 }
 
