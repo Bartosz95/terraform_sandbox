@@ -63,19 +63,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Fetch TF Cloud API Token
+      # - name: Assume role
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: "arn:aws:iam::342662877796:role/ec_full"
+      #     aws-region: ${{ env.AWS_REGION }}
+      #     mask-aws-account-id: 'no'
+      # # 
+      # - name: Get secret(s)
+      #   uses: aws-actions/aws-secretsmanager-get-secrets@v2
+      #   with:
+          # secret-ids: ${{ env.AWS_REGION }}
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.2.5
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      # - name: Setup Terraform
+      #   uses: hashicorp/setup-terraform@v2
+      #   with:
+      #     terraform_version: 1.2.5
+      #     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
+      # Queue Workspace Runs
       - id: config
         name: Upload configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.2.0
