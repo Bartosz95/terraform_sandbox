@@ -74,47 +74,68 @@ jobs:
           workspace: ${{ env.WORKSPACE_NAME }}
           directory: ${{ env.CONFIG_DIRECTORY }}
 
-      - id: queue
-        name: Queue Apply
-        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.2.0
-        with:
-          token: ${{ secrets.TF_API_TOKEN }}
-          organization: ${{ env.ORGANISATION }}
-          workspace: ${{ env.WORKSPACE_NAME }}
-          configuration_version: ${{ steps.config.outputs.configuration_version_id }}
-
-      - name: Plan output
-        id: plan-output
-        uses: hashicorp/tfc-workflows-github/actions/plan-output@v1.2.0
-        with:
-          organization: ${{ env.ORGANISATION }}
-          token: ${{ secrets.TF_API_TOKEN }}
-          plan: ${{ steps.queue.outputs.plan_id }}
-
-      - name: Check Plan Includes Changes
-        id: check-plan
-        run: |
-          if [[ "${{ steps.plan-output.outputs.add }}" == "0" && "${{ steps.plan-output.outputs.change }}" == "0" && "${{ steps.plan-output.outputs.destroy }}" == "0" ]]; then
-            echo "includes_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "includes_changes=true" >> "$GITHUB_OUTPUT"
-          fi
-
-    outputs:
-      run_id: ${{ steps.queue.outputs.run_id }}
-      includes_changes: ${{ steps.check-plan.outputs.includes_changes }}
-
-  apply:
-    if: ${{ needs.plan.outputs.includes_changes == 'true' }}
-    runs-on: ubuntu-latest
-    needs: plan
-    environment: ${{ inputs.root-module }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Apply
-        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.3.1
+      - name: Discard
+        uses: hashicorp/tfc-workflows-github/actions/discard-run@v1.3.1
         with:
           organization: ${{ env.ORGANISATION }}
           token: ${{ secrets.TF_API_TOKEN }}
           run: ${{needs.plan.outputs.run_id}}
+
+  #     - id: queue
+  #       name: Queue Apply
+  #       uses: hashicorp/tfc-workflows-github/actions/create-run@v1.2.0
+  #       with:
+  #         token: ${{ secrets.TF_API_TOKEN }}
+  #         organization: ${{ env.ORGANISATION }}
+  #         workspace: ${{ env.WORKSPACE_NAME }}
+  #         configuration_version: ${{ steps.config.outputs.configuration_version_id }}
+
+  #     - name: Plan output
+  #       id: plan-output
+  #       uses: hashicorp/tfc-workflows-github/actions/plan-output@v1.2.0
+  #       with:
+  #         organization: ${{ env.ORGANISATION }}
+  #         token: ${{ secrets.TF_API_TOKEN }}
+  #         plan: ${{ steps.queue.outputs.plan_id }}
+
+  #     - name: Check Plan Includes Changes
+  #       id: check-plan
+  #       run: |
+  #         if [[ "${{ steps.plan-output.outputs.add }}" == "0" && "${{ steps.plan-output.outputs.change }}" == "0" && "${{ steps.plan-output.outputs.destroy }}" == "0" ]]; then
+  #           echo "includes_changes=false" >> "$GITHUB_OUTPUT"
+  #         else
+  #           echo "includes_changes=true" >> "$GITHUB_OUTPUT"
+  #         fi
+
+  #   outputs:
+  #     run_id: ${{ steps.queue.outputs.run_id }}
+  #     includes_changes: ${{ steps.check-plan.outputs.includes_changes }}
+
+  # # apply:
+  # #   if: ${{ needs.plan.outputs.includes_changes == 'true' }}
+  # #   runs-on: ubuntu-latest
+  # #   needs: plan
+  # #   environment: ${{ inputs.root-module }}
+  # #   steps:
+  # #     - uses: actions/checkout@v4
+
+  # #     - name: Apply
+  # #       uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.3.1
+  # #       with:
+  # #         organization: ${{ env.ORGANISATION }}
+  # #         token: ${{ secrets.TF_API_TOKEN }}
+  # #         run: ${{needs.plan.outputs.run_id}}
+
+  # discard:
+  #   runs-on: ubuntu-latest
+  #   needs: plan
+  #   environment: ${{ inputs.root-module }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - name: Apply
+  #       uses: hashicorp/tfc-workflows-github/actions/discard-run@v1.3.1
+  #       with:
+  #         organization: ${{ env.ORGANISATION }}
+  #         token: ${{ secrets.TF_API_TOKEN }}
+  #         run: ${{needs.plan.outputs.run_id}}
