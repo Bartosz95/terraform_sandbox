@@ -120,15 +120,12 @@ jobs:
 
           
   discard:
-    if: failure()
+    if: ${{ needs.apply.result == 'failure' }}
     runs-on: ubuntu-latest
     needs: 
       - apply
       - plan
     steps:
-      - run: echo $NE
-        env:
-          NE: ${{ toJson(needs) }}
       - uses: actions/checkout@v4
       - name: Discard
         uses: hashicorp/tfc-workflows-github/actions/discard-run@v1.3.1
