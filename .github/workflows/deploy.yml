@@ -125,7 +125,6 @@ jobs:
     needs: 
       - apply
       - plan
-    environment: ${{ inputs.root-module }}
     steps:
       - uses: actions/checkout@v4
       - name: Discard
